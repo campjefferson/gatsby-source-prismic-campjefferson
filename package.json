@@ -1,6 +1,6 @@
 {
-  "name": "gatsby-source-prismic-cj",
-  "version": "1.0.0",
+  "name": "gatsby-source-prismic-campjefferson",
+  "version": "1.0.3",
   "description": "Gatsby source plugin for building websites using prismic.io as a data source",
   "scripts": {
     "prepublish": "npm run build",
@@ -9,10 +9,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "babel -w src --out-dir ."
   },
-  "homepage": "https://github.com/angeloashmore/gatsby-source-prismic",
+  "homepage": "https://github.com/campjefferson/gatsby-source-prismic-campjefferson",
   "repository": {
     "type": "git",
-    "url": "https://github.com/angeloashmore/gatsby-source-prismic.git"
+    "url": "https://github.com/campjefferson/gatsby-source-prismic-campjefferson.git"
   },
   "keywords": [
     "gatsby",
