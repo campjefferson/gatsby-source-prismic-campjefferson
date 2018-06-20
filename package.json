@@ -1,6 +1,6 @@
 {
-  "name": "gatsby-source-prismic",
-  "version": "2.0.0-alpha.2",
+  "name": "gatsby-source-prismic-cj",
+  "version": "1.0.0",
   "description": "Gatsby source plugin for building websites using prismic.io as a data source",
   "scripts": {
     "prepublish": "npm run build",
@@ -19,7 +19,7 @@
     "gatsby-plugin",
     "gatsby-source-plugin"
   ],
-  "author": "Angelo Ashmore <angelo.ashmore@walltowall.com>",
+  "author": "Angelo Ashmore <angelo.ashmore@walltowall.com>, Anthony Sapp <anthony.sapp@campjefferson.com>",
   "license": "MIT",
   "dependencies": {
     "asyncro": "^3.0.0",
