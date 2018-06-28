@@ -109,12 +109,15 @@ const normalizeImageField = async args => {
       console.log(error)
     }
   }
-  
-  Object.keys(value).forEach(async key=>{
+
+  // add local files for alternate versions of an image, if they exist
+  let keys = Object.keys(value);
+  for (let i= 0; i < keys.length; i ++ ) {
+    let key = keys[i];
     if (isImageField(value[key])){
-      return await(normalizeImageField({value:value[key], createNode, createNodeId, store, cache, touchNode}))
+      value[key] = await normalizeImageField({value:value[key], createNode, createNodeId, store, cache, touchNode})
     }
-  })
+  }
 
   if (fileNodeID) {
     return {
