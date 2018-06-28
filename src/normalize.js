@@ -21,9 +21,7 @@ const isImageField = value =>
   value !== null &&
   typeof value === 'object' &&
   value.hasOwnProperty('url') &&
-  value.hasOwnProperty('dimensions') &&
-  value.hasOwnProperty('alt') &&
-  value.hasOwnProperty('copyright')
+  value.hasOwnProperty('dimensions')
 
 // Returns true if the key and value appear to be from a slice zone field,
 // false otherwise.
@@ -111,6 +109,12 @@ const normalizeImageField = async args => {
       console.log(error)
     }
   }
+  
+  Object.keys(value).forEach(async key=>{
+    if (isImageField(value[key])){
+      return await(normalizeImageField({value:value[key], createNode, createNodeId, store, cache, touchNode}))
+    }
+  })
 
   if (fileNodeID) {
     return {

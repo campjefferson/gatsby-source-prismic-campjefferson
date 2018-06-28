@@ -6,8 +6,8 @@ export default async ({
   apiOptions
 }) => {
   console.time(`Fetch Prismic data`)
-  console.log(`Starting to fetch data from Prismic`)
-``
+  console.log(`Starting to fetch data from Prismic`);
+  
   const apiEndpoint = `https://${repositoryName}.prismic.io/api/v2`
   const client = await Prismic.api(apiEndpoint, { accessToken })
 
