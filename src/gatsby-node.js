@@ -3,25 +3,25 @@ import fetchData from './fetch'
 import { normalizeFields } from './normalize'
 
 const nodeHelpers = createNodeHelpers({ typePrefix: 'Prismic' })
-const { createNodeFactory, generateNodeId } = nodeHelpers
+const { createNodeFactory } = nodeHelpers
 
 export const sourceNodes = async (gatsby, pluginOptions) => {
-  const { actions, store, cache, createNodeId } = gatsby
+  const { actions, createNodeId, store, cache } = gatsby
   const { createNode, touchNode } = actions
   const {
     repositoryName,
     accessToken,
-    apiOptions,
     linkResolver = () => {},
     htmlSerializer = () => {},
+    fetchLinks = [],
+    lang = '*',
   } = pluginOptions
 
-  const {
-    documents
-  } = await fetchData({
+  const { documents } = await fetchData({
     repositoryName,
     accessToken,
-    apiOptions
+    fetchLinks,
+    lang,
   })
 
   await Promise.all(

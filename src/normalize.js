@@ -21,7 +21,9 @@ const isImageField = value =>
   value !== null &&
   typeof value === 'object' &&
   value.hasOwnProperty('url') &&
-  value.hasOwnProperty('dimensions')
+  value.hasOwnProperty('dimensions') &&
+  value.hasOwnProperty('alt') &&
+  value.hasOwnProperty('copyright')
 
 // Returns true if the key and value appear to be from a slice zone field,
 // false otherwise.
@@ -55,15 +57,18 @@ const normalizeLinkField = (value, linkResolver, generateNodeId) => {
     case 'Document':
       if (!value.type || !value.id || value.isBroken) return undefined
       return {
+        ...value,
         document___NODE: [generateNodeId(value.type, value.id)],
         url: PrismicDOM.Link.url(value, linkResolver),
+        target: value.target || '',
         raw: value,
       }
 
     case 'Media':
     case 'Web':
       return {
-        url: value.url,
+        ...value,
+        target: value.target || '',
         raw: value,
       }
 
@@ -110,18 +115,11 @@ const normalizeImageField = async args => {
     }
   }
 
-  // add local files for alternate versions of an image, if they exist
-  let keys = Object.keys(value);
-  for (let i= 0; i < keys.length; i ++ ) {
-    let key = keys[i];
-    if (isImageField(value[key])){
-      value[key] = await normalizeImageField({value:value[key], createNode, createNodeId, store, cache, touchNode})
-    }
-  }
-
   if (fileNodeID) {
     return {
       ...value,
+      alt: value.alt || '',
+      copyright: value.copyright || '',
       localFile___NODE: fileNodeID,
     }
   }
