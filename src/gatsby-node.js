@@ -1,33 +1,46 @@
-import createNodeHelpers from 'gatsby-node-helpers'
-import fetchData from './fetch'
-import { normalizeFields } from './normalize'
+import createNodeHelpers from 'gatsby-node-helpers';
+import fetchData from './fetch';
+import { normalizeFields } from './normalize';
 
-const nodeHelpers = createNodeHelpers({ typePrefix: 'Prismic' })
-const { createNodeFactory } = nodeHelpers
+const nodeHelpers = createNodeHelpers({ typePrefix: 'Prismic' });
+const { createNodeFactory } = nodeHelpers;
 
 export const sourceNodes = async (gatsby, pluginOptions) => {
-  const { actions, createNodeId, store, cache } = gatsby
-  const { createNode, touchNode } = actions
+  const { actions, createNodeId, store, cache } = gatsby;
+  const { createNode, touchNode } = actions;
   const {
     repositoryName,
     accessToken,
     linkResolver = () => {},
     htmlSerializer = () => {},
+    nodeModifier = node => {
+      return node;
+    },
     fetchLinks = [],
-    lang = '*',
-  } = pluginOptions
+    lang = '*'
+  } = pluginOptions;
 
   const { documents } = await fetchData({
     repositoryName,
     accessToken,
     fetchLinks,
-    lang,
-  })
+    lang
+  });
 
   await Promise.all(
     documents.map(async doc => {
       const Node = createNodeFactory(doc.type, async node => {
-        node.dataString = JSON.stringify(node.data)
+        const originalNode = node;
+        if (nodeModifier) {
+          node = nodeModifier(node);
+          if (!node) {
+            console.log(
+              'what did you do to the node in your nodeModifier method? returning original node...'
+            );
+            node = originalNode;
+          }
+        }
+        node.dataString = JSON.stringify(node.data);
         node.data = await normalizeFields({
           value: node.data,
           node,
@@ -38,16 +51,16 @@ export const sourceNodes = async (gatsby, pluginOptions) => {
           createNodeId,
           touchNode,
           store,
-          cache,
-        })
+          cache
+        });
 
-        return node
-      })
+        return node;
+      });
 
-      const node = await Node(doc)
-      createNode(node)
-    }),
-  )
+      const node = await Node(doc);
+      createNode(node);
+    })
+  );
 
-  return
-}
+  return;
+};
