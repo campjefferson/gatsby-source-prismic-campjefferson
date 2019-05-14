@@ -1,19 +1,19 @@
-import PrismicDOM from 'prismic-dom'
-import { createRemoteFileNode } from 'gatsby-source-filesystem'
-import { map, reduce } from 'asyncro'
+import PrismicDOM from 'prismic-dom';
+import { createRemoteFileNode } from 'gatsby-source-filesystem';
+import { map, reduce } from 'asyncro';
 
 // Returns true if the field value appears to be a Rich Text field, false
 // otherwise.
 const isRichTextField = value =>
   Array.isArray(value) &&
   typeof value[0] === 'object' &&
-  Object.keys(value[0]).includes('spans')
+  Object.keys(value[0]).includes('spans');
 
 // Returns true if the field value appears to be a Link field, false otherwise.
 const isLinkField = value =>
   value !== null &&
   typeof value === 'object' &&
-  value.hasOwnProperty('link_type')
+  value.hasOwnProperty('link_type');
 
 // Returns true if the field value appears to be an Image field, false
 // otherwise.
@@ -23,7 +23,7 @@ const isImageField = value =>
   value.hasOwnProperty('url') &&
   value.hasOwnProperty('dimensions') &&
   value.hasOwnProperty('alt') &&
-  value.hasOwnProperty('copyright')
+  value.hasOwnProperty('copyright');
 
 // Returns true if the key and value appear to be from a slice zone field,
 // false otherwise.
@@ -31,13 +31,13 @@ const isSliceField = (key, value) =>
   Array.isArray(value) &&
   typeof value[0] === 'object' &&
   value[0].hasOwnProperty('slice_type') &&
-  (value[0].hasOwnProperty('primary') || value[0].hasOwnProperty('items'))
+  (value[0].hasOwnProperty('primary') || value[0].hasOwnProperty('items'));
 
 // Returns true if the field value appears to be a group field, false
 // otherwise.
 // NOTE: This check must be performed after isRichTextField and isSliceField.
 const isGroupField = value =>
-  Array.isArray(value) && typeof value[0] === 'object'
+  Array.isArray(value) && typeof value[0] === 'object';
 
 // Normalizes a rich text field by providing HTML and text versions of the
 // value using `prismic-dom` on the `html` and `text` keys, respectively. The
@@ -45,8 +45,8 @@ const isGroupField = value =>
 const normalizeRichTextField = (value, linkResolver, htmlSerializer) => ({
   html: PrismicDOM.RichText.asHtml(value, linkResolver, htmlSerializer),
   text: PrismicDOM.RichText.asText(value),
-  raw: value,
-})
+  raw: value
+});
 
 // Normalizes a link field by providing a resolved URL using `prismic-dom` on
 // the `url` field. If the value is an external link, the value is provided
@@ -55,159 +55,176 @@ const normalizeRichTextField = (value, linkResolver, htmlSerializer) => ({
 const normalizeLinkField = (value, linkResolver, generateNodeId) => {
   switch (value.link_type) {
     case 'Document':
-      if (!value.type || !value.id || value.isBroken) return undefined
+      if (!value.type || !value.id || value.isBroken) return undefined;
       return {
         ...value,
         document___NODE: [generateNodeId(value.type, value.id)],
         url: PrismicDOM.Link.url(value, linkResolver),
         target: value.target || '',
-        raw: value,
-      }
+        raw: value
+      };
 
     case 'Media':
     case 'Web':
       return {
         ...value,
         target: value.target || '',
-        raw: value,
-      }
+        raw: value
+      };
 
     default:
-      return undefined
+      return undefined;
   }
-}
+};
 
 // Normalizes an Image field by downloading the remote image and creating a
 // File node using `gatsby-source-filesystem`. This allows for
 // `gatsby-transformer-sharp` and `gatsby-image` integration. The linked node
 // data is provided on the `localFile` key.
 const normalizeImageField = async args => {
-  const { value, createNode, createNodeId, store, cache, touchNode } = args
+  const { value, createNode, createNodeId, store, cache, touchNode } = args;
+  const { alt, dimensions, copyright, ...extraFields } = value;
+  const url = decodeURIComponent(value.url);
 
-  let fileNodeID
-  const mediaDataCacheKey = `prismic-media-${value.url}`
-  const cacheMediaData = await cache.get(mediaDataCacheKey)
+  let fileNodeID;
+  const mediaDataCacheKey = `prismic-media-${url}`;
+  const cacheMediaData = await cache.get(mediaDataCacheKey);
 
   // If we have cached media data and it wasn't modified, reuse previously
   // created file node to not try to redownload.
   if (cacheMediaData) {
-    fileNodeID = cacheMediaData.fileNodeID
-    touchNode({ nodeId: cacheMediaData.fileNodeID })
+    fileNodeID = cacheMediaData.fileNodeID;
+    touchNode({ nodeId: cacheMediaData.fileNodeID });
   }
 
   // If we don't have cached data, download the file.
   if (!fileNodeID) {
     try {
       const fileNode = await createRemoteFileNode({
-        url: value.url,
+        url,
         store,
         cache,
         createNode,
-        createNodeId,
-      })
+        createNodeId
+      });
 
       if (fileNode) {
-        fileNodeID = fileNode.id
-        await cache.set(mediaDataCacheKey, { fileNodeID })
+        fileNodeID = fileNode.id;
+        await cache.set(mediaDataCacheKey, { fileNodeID });
       }
     } catch (error) {
-      console.log(error)
+      console.log(error);
+    }
+  }
+
+  for (const key in extraFields) {
+    if (isImageField(value[key])) {
+      value[key] = await normalizeImageField({
+        ...args,
+        key,
+        value: value[key]
+      });
     }
   }
 
   if (fileNodeID) {
     return {
       ...value,
-      alt: value.alt || '',
-      copyright: value.copyright || '',
-      localFile___NODE: fileNodeID,
-    }
+      alt: alt || '',
+      copyright: copyright || '',
+      localFile___NODE: fileNodeID
+    };
   }
 
-  return value
-}
+  return value;
+};
 
 // Normalizes a slice zone field by recursively normalizing `item` and
 // `primary` keys. It creates a node type for each slice type to ensure the
 // slice key can handle multiple (i.e. union) types.
 const normalizeSliceField = async args => {
-  const { key: sliceKey, value: entries, node, nodeHelpers, createNode } = args
-  const { createNodeFactory } = nodeHelpers
+  const { key: sliceKey, value: entries, node, nodeHelpers, createNode } = args;
+  const { createNodeFactory } = nodeHelpers;
 
   const childrenIds = await reduce(
     entries,
     async (acc, entry, index) => {
       // Create unique ID for the child using the parent node ID, the slice key,
       // and the index of the slice.
-      entry.id = `${node.id}__${sliceKey}__${index}`
+      entry.id = `${node.id}__${sliceKey}__${index}`;
 
-      const entryNodeType = `${node.type}_${sliceKey}_${entry.slice_type}`
+      const entryNodeType = `${node.type}_${sliceKey}_${entry.slice_type}`;
       const EntryNode = createNodeFactory(entryNodeType, async entryNode => {
         entryNode.items = await normalizeGroupField({
           ...args,
-          value: entryNode.items,
-        })
+          value: entryNode.items
+        });
         entryNode.primary = await normalizeFields({
           ...args,
-          value: entryNode.primary,
-        })
+          value: entryNode.primary
+        });
 
-        return entryNode
-      })
+        return entryNode;
+      });
 
-      const entryNode = await EntryNode(entry)
-      createNode(entryNode)
+      const entryNode = await EntryNode(entry);
+      createNode(entryNode);
 
-      return acc.concat([entryNode.id])
+      return acc.concat([entryNode.id]);
     },
-    [],
-  )
+    []
+  );
 
   // TODO: Remove hard-coded setter
-  node.data[`${sliceKey}___NODE`] = childrenIds
-  return undefined
-}
+  node.data[`${sliceKey}___NODE`] = childrenIds;
+  return undefined;
+};
 
 // Normalizes a group field by recursively normalizing each entry.
 const normalizeGroupField = async args =>
   await map(
     args.value,
-    async value => await normalizeFields({ ...args, value }),
-  )
+    async value => await normalizeFields({ ...args, value })
+  );
 
 // Normalizes a field by determining its type and returning an enhanced version
 // of it. If the type is not supported or needs no normalizing, it is returned
 // as-is.
 export const normalizeField = async args => {
-  const { key, value, node, nodeHelpers } = args
-  let { linkResolver, htmlSerializer } = args
-  const { generateNodeId } = nodeHelpers
+  const { key, value, node, nodeHelpers, shouldNormalizeImage } = args;
+  let { linkResolver, htmlSerializer } = args;
+  const { generateNodeId } = nodeHelpers;
 
-  linkResolver = linkResolver({ node, key, value })
-  htmlSerializer = htmlSerializer({ node, key, value })
+  linkResolver = linkResolver({ node, key, value });
+  htmlSerializer = htmlSerializer({ node, key, value });
 
   if (isRichTextField(value))
-    return normalizeRichTextField(value, linkResolver, htmlSerializer)
+    return normalizeRichTextField(value, linkResolver, htmlSerializer);
 
   if (isLinkField(value))
-    return normalizeLinkField(value, linkResolver, generateNodeId)
+    return normalizeLinkField(value, linkResolver, generateNodeId);
 
-  if (isImageField(value)) return await normalizeImageField(args)
+  if (
+    isImageField(value) &&
+    typeof shouldNormalizeImage === 'function' &&
+    shouldNormalizeImage({ node, key, value })
+  )
+    return await normalizeImageField(args);
 
-  if (isSliceField(key, value)) return await normalizeSliceField(args)
+  if (isSliceField(key, value)) return await normalizeSliceField(args);
 
-  if (isGroupField(value)) return await normalizeGroupField(args)
+  if (isGroupField(value)) return await normalizeGroupField(args);
 
-  return value
-}
+  return value;
+};
 
 // Normalizes all fields in a key-value object.
 export const normalizeFields = async args =>
   await reduce(
     Object.entries(args.value),
     async (acc, [key, value]) => {
-      acc[key] = await normalizeField({ ...args, key, value })
-      return acc
+      acc[key] = await normalizeField({ ...args, key, value });
+      return acc;
     },
-    args.value,
-  )
+    args.value
+  );
