@@ -10,6 +10,7 @@ export const sourceNodes = async (gatsby, pluginOptions) => {
   const { createNode, touchNode } = actions;
   const {
     repositoryName,
+    apiOptions,
     accessToken,
     linkResolver = () => {},
     htmlSerializer = () => {},
@@ -25,6 +26,7 @@ export const sourceNodes = async (gatsby, pluginOptions) => {
   const { documents } = await fetchData({
     repositoryName,
     accessToken,
+    apiOptions,
     fetchLinks,
     lang
   });
